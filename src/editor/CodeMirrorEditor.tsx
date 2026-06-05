@@ -19,6 +19,8 @@ export default function CodeMirrorEditor({
 }: CodeMirrorEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [initialized, setInitialized] = useState(false);
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
 
   const extensions: Extension[] = [
     history(),
@@ -30,7 +32,7 @@ export default function CodeMirrorEditor({
       {
         key: "Mod-s",
         run: () => {
-          onSave();
+          onSaveRef.current();
           return true;
         },
         preventDefault: true,

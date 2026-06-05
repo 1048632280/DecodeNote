@@ -62,6 +62,15 @@ function countFFFD(text: string): number {
   return n;
 }
 
+function findGarbledPositions(view: EditorView): number[] {
+  const text = view.state.doc.toString();
+  const pos: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\uFFFD") pos.push(i);
+  }
+  return pos;
+}
+
 export default function App() {
   const editorRef = useRef<EditorView | null>(null);
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -78,6 +87,7 @@ export default function App() {
   const [encodingOptions, setEncodingOptions] = useState<EncodingOption[]>([]);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [garbledIndex, setGarbledIndex] = useState(0);
   const seqRef = useRef(0);
   const baselineTextRef = useRef("");
   const pendingSkipRef = useRef(0);
@@ -91,6 +101,7 @@ export default function App() {
     const garbled = countFFFD(current);
     setModifiedChars(mod);
     setLiveGarbled(garbled);
+    setGarbledIndex((prev) => Math.min(prev, Math.max(0, garbled - 1)));
     setIsDirty(mod > 0);
   }, []);
 
@@ -164,6 +175,7 @@ export default function App() {
     setFileSize(result.file_size);
     setTotalChars(result.total_chars);
     setLiveGarbled(result.replacement_count);
+    setGarbledIndex(0);
     setModifiedChars(0);
     setIsDirty(false);
     setCurrentLine(1);
@@ -283,6 +295,32 @@ export default function App() {
     setCurrentCol(col);
   }, []);
 
+  const handleGarbledPrev = useCallback(() => {
+    const view = editorRef.current;
+    if (!view) return;
+    const positions = findGarbledPositions(view);
+    if (positions.length === 0) { setGarbledIndex(0); return; }
+    const idx = garbledIndex <= 0 ? positions.length - 1 : garbledIndex - 1;
+    setGarbledIndex(idx);
+    view.dispatch({
+      selection: { anchor: positions[idx], head: positions[idx] + 1 },
+      scrollIntoView: true,
+    });
+  }, [garbledIndex]);
+
+  const handleGarbledNext = useCallback(() => {
+    const view = editorRef.current;
+    if (!view) return;
+    const positions = findGarbledPositions(view);
+    if (positions.length === 0) { setGarbledIndex(0); return; }
+    const idx = garbledIndex >= positions.length - 1 ? 0 : garbledIndex + 1;
+    setGarbledIndex(idx);
+    view.dispatch({
+      selection: { anchor: positions[idx], head: positions[idx] + 1 },
+      scrollIntoView: true,
+    });
+  }, [garbledIndex]);
+
   const commonEncodings = encodingOptions
     .filter((e) => e.category === "common")
     .map((e) => ({ id: e.id, label: e.label }));
@@ -298,6 +336,10 @@ export default function App() {
         onOpen={handleOpen}
         onSave={handleSave}
         onSaveAs={handleSaveAs}
+        garbledTotal={liveGarbled}
+        garbledIndex={garbledIndex}
+        onGarbledPrev={handleGarbledPrev}
+        onGarbledNext={handleGarbledNext}
       />
       <CodeMirrorEditor
         editorRef={editorRef}

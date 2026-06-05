@@ -97,6 +97,31 @@ body {
   white-space: nowrap;
 }
 
+.garbled-nav {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-right: 8px;
+}
+
+.garbled-nav-btn {
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  line-height: 1;
+  min-width: 22px;
+  justify-content: center;
+  border: 1px solid var(--border) !important;
+}
+
+.garbled-count {
+  color: var(--danger);
+  font-size: 11px;
+  padding: 0 4px;
+  white-space: nowrap;
+  min-width: 60px;
+  text-align: center;
+}
+
 .editor-container {
   flex: 1;
   overflow: hidden;
