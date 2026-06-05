@@ -6,6 +6,7 @@ interface StatusBarProps {
   activeEncoding: string;
   detectedEncoding: string | null;
   replacementCount: number;
+  totalChars: number;
   hadErrors: boolean;
 }
 
@@ -23,8 +24,12 @@ export default function StatusBar({
   activeEncoding,
   detectedEncoding,
   replacementCount,
+  totalChars,
   hadErrors,
 }: StatusBarProps) {
+  const garbledRate =
+    totalChars > 0 ? ((replacementCount / totalChars) * 100).toFixed(2) : "0.00";
+
   return (
     <div className="status-bar">
       <div className="status-left">
@@ -47,7 +52,7 @@ export default function StatusBar({
         )}
         {hadErrors && replacementCount > 0 && (
           <span className="status-item warning">
-            替换字符: {replacementCount}
+            乱码: {replacementCount}/{totalChars} ({garbledRate}%)
           </span>
         )}
       </div>

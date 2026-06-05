@@ -136,6 +136,7 @@ pub async fn open_file(
     let detection = detect_encoding(&bytes);
     let (text, had_errors, replacement_count) = decode_bytes(&bytes, &detection.encoding)?;
 
+    let total_chars = text.chars().count();
     let bom = detection.bom.clone();
     let detected = detection.encoding.clone();
 
@@ -158,6 +159,7 @@ pub async fn open_file(
         file_size,
         had_errors,
         replacement_count,
+        total_chars,
         bom,
         revision,
     })
@@ -178,6 +180,7 @@ pub async fn decode_current_as(
     };
 
     let (text, had_errors, replacement_count) = decode_bytes(&bytes, &encoding)?;
+    let total_chars = text.chars().count();
 
     let revision = {
         let mut doc_lock = state.document.lock().map_err(|e| AppError::Internal(e.to_string()))?;
@@ -197,6 +200,7 @@ pub async fn decode_current_as(
         file_size: bytes.len() as u64,
         had_errors,
         replacement_count,
+        total_chars,
         bom: None,
         revision,
     })

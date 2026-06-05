@@ -12,9 +12,6 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        arch: [x64]
 
     steps:
       - name: Checkout
@@ -37,6 +34,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+
+      - name: Generate icons from source PNG
+        run: npx tauri icon src-tauri/icons/icon.png
 
       - name: Build Tauri app
         run: npx tauri build --bundles nsis,msi

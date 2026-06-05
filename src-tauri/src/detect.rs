@@ -68,23 +68,16 @@ pub fn detect_encoding(bytes: &[u8]) -> DetectionResult {
         return result;
     }
 
-    let mut detector = chardetng::EncodingDetector::new();
+    let mut detector =
+        chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Deny);
     detector.feed(bytes, true);
-    let (name, confidence) = detector.guess_assess(None, true);
-
-    let encoding = map_chardetng_name(name);
-    let confidence = if confidence < 0.5 {
-        DetectionConfidence::Low
-    } else if confidence < 0.8 {
-        DetectionConfidence::Medium
-    } else {
-        DetectionConfidence::High
-    };
+    let enc = detector.guess(None, chardetng::Utf8Detection::Allow);
+    let encoding = map_chardetng_encoding(enc);
 
     DetectionResult {
         encoding,
         bom: None,
-        confidence,
+        confidence: DetectionConfidence::Medium,
     }
 }
 
@@ -137,7 +130,8 @@ fn detect_utf16_heuristic(bytes: &[u8]) -> Option<DetectionResult> {
     None
 }
 
-fn map_chardetng_name(name: &str) -> EncodingId {
+fn map_chardetng_encoding(enc: &'static encoding_rs::Encoding) -> EncodingId {
+    let name = enc.name();
     match name {
         "UTF-8" => EncodingId::Utf8,
         "GBK" | "GB2312" => EncodingId::Gbk,

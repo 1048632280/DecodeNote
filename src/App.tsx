@@ -17,6 +17,7 @@ interface DecodeResult {
   file_size: number;
   had_errors: boolean;
   replacement_count: number;
+  total_chars: number;
   bom: string | null;
   revision: number;
 }
@@ -48,6 +49,7 @@ export default function App() {
   const [isDirty, setIsDirty] = useState(false);
   const [hadErrors, setHadErrors] = useState(false);
   const [replacementCount, setReplacementCount] = useState(0);
+  const [totalChars, setTotalChars] = useState(0);
   const [currentLine, setCurrentLine] = useState(1);
   const [currentCol, setCurrentCol] = useState(1);
   const [loadingEncoding, setLoadingEncoding] = useState<string | null>(null);
@@ -127,6 +129,7 @@ export default function App() {
     setFileSize(result.file_size);
     setHadErrors(result.had_errors);
     setReplacementCount(result.replacement_count);
+    setTotalChars(result.total_chars);
     setIsDirty(false);
     setCurrentLine(1);
     setCurrentCol(1);
@@ -266,6 +269,7 @@ export default function App() {
         activeEncoding={encoding}
         detectedEncoding={detectedEncoding}
         replacementCount={replacementCount}
+        totalChars={totalChars}
         hadErrors={hadErrors}
       />
       <EncodingBar

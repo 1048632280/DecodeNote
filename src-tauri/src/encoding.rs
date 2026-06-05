@@ -61,6 +61,7 @@ pub struct DecodeResult {
     pub file_size: u64,
     pub had_errors: bool,
     pub replacement_count: usize,
+    pub total_chars: usize,
     pub bom: Option<String>,
     pub revision: u64,
 }
