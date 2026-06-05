@@ -41,12 +41,25 @@ interface ToastState {
 }
 
 function countModified(original: string, current: string): number {
+  let prefix = 0;
   const minLen = Math.min(original.length, current.length);
-  let diff = Math.abs(original.length - current.length);
-  for (let i = 0; i < minLen; i++) {
-    if (original[i] !== current[i]) diff++;
+  while (prefix < minLen && original[prefix] === current[prefix]) prefix++;
+  let suffix = 0;
+  while (
+    suffix < minLen - prefix &&
+    original[original.length - 1 - suffix] === current[current.length - 1 - suffix]
+  ) suffix++;
+  const origChanged = original.length - prefix - suffix;
+  const currChanged = current.length - prefix - suffix;
+  return Math.max(origChanged, currChanged);
+}
+
+function countFFFD(text: string): number {
+  let n = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\uFFFD") n++;
   }
-  return diff;
+  return n;
 }
 
 export default function App() {
@@ -56,9 +69,8 @@ export default function App() {
   const [detectedEncoding, setDetectedEncoding] = useState<EncodingId | null>(null);
   const [fileSize, setFileSize] = useState<number | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [hadErrors, setHadErrors] = useState(false);
-  const [replacementCount, setReplacementCount] = useState(0);
   const [totalChars, setTotalChars] = useState(0);
+  const [liveGarbled, setLiveGarbled] = useState(0);
   const [modifiedChars, setModifiedChars] = useState(0);
   const [currentLine, setCurrentLine] = useState(1);
   const [currentCol, setCurrentCol] = useState(1);
@@ -76,7 +88,9 @@ export default function App() {
     if (!view) return;
     const current = view.state.doc.toString();
     const mod = countModified(baselineTextRef.current, current);
+    const garbled = countFFFD(current);
     setModifiedChars(mod);
+    setLiveGarbled(garbled);
     setIsDirty(mod > 0);
   }, []);
 
@@ -148,9 +162,8 @@ export default function App() {
     setEncoding(result.encoding);
     setDetectedEncoding(result.detected_encoding);
     setFileSize(result.file_size);
-    setHadErrors(result.had_errors);
-    setReplacementCount(result.replacement_count);
     setTotalChars(result.total_chars);
+    setLiveGarbled(result.replacement_count);
     setModifiedChars(0);
     setIsDirty(false);
     setCurrentLine(1);
@@ -179,7 +192,7 @@ export default function App() {
     }
   }, [handleOpenPath, modifiedChars]);
 
-  const handleSave = useCallback(async () => {
+  const doSave = useCallback(async () => {
     if (!filePath) {
       await message("请先打开一个文件", { title: "提示", kind: "info" });
       return;
@@ -188,10 +201,7 @@ export default function App() {
     if (!view) return;
     const text = view.state.doc.toString();
     try {
-      await invoke<SaveResult>("save_current", {
-        text,
-        encoding,
-      });
+      await invoke<SaveResult>("save_current", { text, encoding });
       baselineTextRef.current = text;
       setIsDirty(false);
       setModifiedChars(0);
@@ -199,6 +209,10 @@ export default function App() {
       await message(`保存失败: ${err}`, { title: "错误", kind: "error" });
     }
   }, [filePath, encoding]);
+
+  const handleSave = useCallback(async () => {
+    await doSave();
+  }, [doSave]);
 
   const handleSaveAs = useCallback(async () => {
     const view = editorRef.current;
@@ -228,7 +242,6 @@ export default function App() {
   const handleEncodeClick = useCallback(
     async (encId: EncodingId) => {
       if (encId === encoding && modifiedChars === 0) return;
-
       if (modifiedChars > 0) {
         const confirmed = await ask(
           "当前内容有未保存修改。继续操作会丢弃这些修改，是否继续？",
@@ -236,7 +249,6 @@ export default function App() {
         );
         if (!confirmed) return;
       }
-
       const seq = ++seqRef.current;
       setLoadingEncoding(encId);
       try {
@@ -291,18 +303,17 @@ export default function App() {
         editorRef={editorRef}
         onContentChange={handleContentChange}
         onCursorChange={handleCursorChange}
+        onSave={doSave}
       />
       <StatusBar
         fileSize={fileSize}
-        isDirty={isDirty}
+        modifiedChars={modifiedChars}
         currentLine={currentLine}
         currentCol={currentCol}
         activeEncoding={encoding}
         detectedEncoding={detectedEncoding}
-        replacementCount={replacementCount}
+        garbledChars={liveGarbled}
         totalChars={totalChars}
-        hadErrors={hadErrors}
-        modifiedChars={modifiedChars}
       />
       <EncodingBar
         commonEncodings={commonEncodings}
@@ -322,16 +333,10 @@ export default function App() {
         <div className="toast">
           <div className="toast-message">{toast.message}</div>
           <div className="toast-buttons">
-            <button
-              className="toast-btn"
-              onClick={() => setToast(null)}
-            >
+            <button className="toast-btn" onClick={() => setToast(null)}>
               取消
             </button>
-            <button
-              className="toast-btn primary"
-              onClick={toast.onConfirm}
-            >
+            <button className="toast-btn primary" onClick={toast.onConfirm}>
               {toast.confirmLabel}
             </button>
           </div>

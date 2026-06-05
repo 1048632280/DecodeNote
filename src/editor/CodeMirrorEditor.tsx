@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { EditorView } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { EditorState, type Extension } from "@codemirror/state";
 import { history, redo, undo } from "@codemirror/commands";
-import { keymap } from "@codemirror/view";
 import { defaultKeymap } from "@codemirror/commands";
 
 interface CodeMirrorEditorProps {
   onContentChange: () => void;
   onCursorChange: (line: number, col: number) => void;
+  onSave: () => void;
   editorRef: React.MutableRefObject<EditorView | null>;
 }
 
 export default function CodeMirrorEditor({
   onContentChange,
   onCursorChange,
+  onSave,
   editorRef,
 }: CodeMirrorEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -26,6 +27,14 @@ export default function CodeMirrorEditor({
       { key: "Mod-z", run: undo },
       { key: "Mod-y", run: redo },
       { key: "Mod-Shift-z", run: redo },
+      {
+        key: "Mod-s",
+        run: () => {
+          onSave();
+          return true;
+        },
+        preventDefault: true,
+      },
     ]),
     EditorView.lineWrapping,
     EditorState.transactionFilter.of((tr) => {
@@ -64,11 +73,7 @@ export default function CodeMirrorEditor({
     <div
       ref={containerRef}
       className="editor-container"
-      style={{
-        flex: 1,
-        overflow: "auto",
-        height: "100%",
-      }}
+      style={{ flex: 1, overflow: "auto", height: "100%" }}
     />
   );
 }

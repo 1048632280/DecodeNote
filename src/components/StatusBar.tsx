@@ -1,14 +1,12 @@
 interface StatusBarProps {
   fileSize: number | null;
-  isDirty: boolean;
+  modifiedChars: number;
   currentLine: number;
   currentCol: number;
   activeEncoding: string;
   detectedEncoding: string | null;
-  replacementCount: number;
+  garbledChars: number;
   totalChars: number;
-  hadErrors: boolean;
-  modifiedChars: number;
 }
 
 function formatFileSize(bytes: number): string {
@@ -19,18 +17,19 @@ function formatFileSize(bytes: number): string {
 
 export default function StatusBar({
   fileSize,
-  isDirty,
+  modifiedChars,
   currentLine,
   currentCol,
   activeEncoding,
   detectedEncoding,
-  replacementCount,
+  garbledChars,
   totalChars,
-  hadErrors,
-  modifiedChars,
 }: StatusBarProps) {
+  const saved = modifiedChars === 0;
+  const modified = modifiedChars > 0;
+  const garbled = garbledChars > 0;
   const garbledRate =
-    totalChars > 0 ? ((replacementCount / totalChars) * 100).toFixed(2) : "0.00";
+    totalChars > 0 ? ((garbledChars / totalChars) * 100).toFixed(2) : "0.00";
 
   return (
     <div className="status-bar">
@@ -38,22 +37,20 @@ export default function StatusBar({
         {fileSize !== null && (
           <span className="status-item">{formatFileSize(fileSize)}</span>
         )}
-        {isDirty && <span className="status-item dirty">已修改</span>}
         <span className="status-item">
           行 {currentLine}, 列 {currentCol}
         </span>
       </div>
       <div className="status-right">
-        {fileSize !== null && modifiedChars > 0 && (
-          <span className="status-item warning">
-            已改: {modifiedChars} 字符
-          </span>
-        )}
-        {fileSize !== null && hadErrors && replacementCount > 0 && (
-          <span className="status-item warning">
-            乱码: {replacementCount}/{totalChars} ({garbledRate}%)
-          </span>
-        )}
+        <span className={`status-item ${saved ? "green" : "red"}`}>
+          {saved ? "已保存" : "未保存"}
+        </span>
+        <span className={`status-item ${modified ? "red" : "green"}`}>
+          {modified ? `已改: ${modifiedChars} 字符` : "未改"}
+        </span>
+        <span className={`status-item ${garbled ? "red" : "green"}`}>
+          乱码: {garbledChars}/{totalChars} ({garbledRate}%)
+        </span>
         <span className="status-item">
           <strong>{activeEncoding}</strong>
         </span>

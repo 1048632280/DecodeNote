@@ -168,11 +168,10 @@ body {
   font-weight: 600;
 }
 
-.status-item.dirty {
-  color: var(--warning);
+.status-item.green {
+  color: #008800;
 }
-
-.status-item.warning {
+.status-item.red {
   color: var(--danger);
 }
 
