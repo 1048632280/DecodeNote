@@ -212,20 +212,20 @@ pub async fn save_current(
     text: String,
     encoding: EncodingId,
 ) -> Result<SaveResult, AppError> {
-    let (path, current_revision) = {
+    let (path, _current_revision) = {
         let doc_lock = state.document.lock().map_err(|e| AppError::Internal(e.to_string()))?;
         let doc = doc_lock.as_ref().ok_or(AppError::NoDocument)?;
         (doc.path.clone(), doc.revision)
     };
 
     let bytes = encode_text(&text, &encoding)?;
+    let file_size = bytes.len() as u64;
 
     let path_clone = path.clone();
-    tokio::task::spawn_blocking(move || file_io::write_file_bytes(&path_clone, &bytes))
+    let bytes_for_write = bytes.clone();
+    tokio::task::spawn_blocking(move || file_io::write_file_bytes(&path_clone, &bytes_for_write))
         .await
         .map_err(|e| AppError::Internal(e.to_string()))??;
-
-    let file_size = bytes.len() as u64;
     let revision = {
         let mut doc_lock = state.document.lock().map_err(|e| AppError::Internal(e.to_string()))?;
         if let Some(ref mut doc) = *doc_lock {
@@ -251,13 +251,13 @@ pub async fn save_as(
 ) -> Result<SaveResult, AppError> {
     let path = PathBuf::from(&path);
     let bytes = encode_text(&text, &encoding)?;
+    let file_size = bytes.len() as u64;
 
     let path_clone = path.clone();
-    tokio::task::spawn_blocking(move || file_io::write_file_bytes(&path_clone, &bytes))
+    let bytes_for_write = bytes.clone();
+    tokio::task::spawn_blocking(move || file_io::write_file_bytes(&path_clone, &bytes_for_write))
         .await
         .map_err(|e| AppError::Internal(e.to_string()))??;
-
-    let file_size = bytes.len() as u64;
     let revision = {
         let mut doc_lock = state.document.lock().map_err(|e| AppError::Internal(e.to_string()))?;
         if let Some(ref mut doc) = *doc_lock {
