@@ -8,6 +8,7 @@ interface StatusBarProps {
   replacementCount: number;
   totalChars: number;
   hadErrors: boolean;
+  modifiedChars: number;
 }
 
 function formatFileSize(bytes: number): string {
@@ -26,6 +27,7 @@ export default function StatusBar({
   replacementCount,
   totalChars,
   hadErrors,
+  modifiedChars,
 }: StatusBarProps) {
   const garbledRate =
     totalChars > 0 ? ((replacementCount / totalChars) * 100).toFixed(2) : "0.00";
@@ -41,18 +43,23 @@ export default function StatusBar({
           行 {currentLine}, 列 {currentCol}
         </span>
       </div>
-      <div className="status-center">
-        <span className="status-item">
-          当前: <strong>{activeEncoding}</strong>
-        </span>
-        {detectedEncoding && (
-          <span className="status-item">
-            推测: {detectedEncoding}
+      <div className="status-right">
+        {fileSize !== null && modifiedChars > 0 && (
+          <span className="status-item warning">
+            已改: {modifiedChars} 字符
           </span>
         )}
-        {hadErrors && replacementCount > 0 && (
+        {fileSize !== null && hadErrors && replacementCount > 0 && (
           <span className="status-item warning">
             乱码: {replacementCount}/{totalChars} ({garbledRate}%)
+          </span>
+        )}
+        <span className="status-item">
+          <strong>{activeEncoding}</strong>
+        </span>
+        {detectedEncoding && detectedEncoding !== activeEncoding && (
+          <span className="status-item" style={{ color: "var(--text-muted)" }}>
+            推测:{detectedEncoding}
           </span>
         )}
       </div>

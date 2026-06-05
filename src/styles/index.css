@@ -1,16 +1,16 @@
 :root {
-  --bg-primary: #1e1e2e;
-  --bg-secondary: #181825;
-  --bg-surface: #313244;
-  --bg-hover: #45475a;
-  --text-primary: #cdd6f4;
-  --text-secondary: #a6adc8;
-  --text-muted: #6c7086;
-  --accent: #89b4fa;
-  --accent-dim: #74c7ec;
-  --warning: #f9e2af;
-  --danger: #f38ba8;
-  --border: #45475a;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f3f3;
+  --bg-surface: #e8e8e8;
+  --bg-hover: #dcdcdc;
+  --text-primary: #1a1a1a;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --accent: #0066cc;
+  --accent-dim: #3399ff;
+  --warning: #cc6600;
+  --danger: #cc0000;
+  --border: #d0d0d0;
   --font-mono: "Cascadia Mono", "Consolas", "Microsoft YaHei UI", monospace;
   --font-ui: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
 }
@@ -152,7 +152,7 @@ body {
 }
 
 .status-left,
-.status-center {
+.status-right {
   display: flex;
   align-items: center;
   gap: 12px;

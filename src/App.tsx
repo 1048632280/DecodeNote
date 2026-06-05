@@ -40,6 +40,15 @@ interface ToastState {
   confirmLabel: string;
 }
 
+function countModified(original: string, current: string): number {
+  const minLen = Math.min(original.length, current.length);
+  let diff = Math.abs(original.length - current.length);
+  for (let i = 0; i < minLen; i++) {
+    if (original[i] !== current[i]) diff++;
+  }
+  return diff;
+}
+
 export default function App() {
   const editorRef = useRef<EditorView | null>(null);
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -50,6 +59,7 @@ export default function App() {
   const [hadErrors, setHadErrors] = useState(false);
   const [replacementCount, setReplacementCount] = useState(0);
   const [totalChars, setTotalChars] = useState(0);
+  const [modifiedChars, setModifiedChars] = useState(0);
   const [currentLine, setCurrentLine] = useState(1);
   const [currentCol, setCurrentCol] = useState(1);
   const [loadingEncoding, setLoadingEncoding] = useState<string | null>(null);
@@ -57,9 +67,18 @@ export default function App() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const seqRef = useRef(0);
-  const dirtyRef = useRef(false);
+  const baselineTextRef = useRef("");
+  const pendingSkipRef = useRef(0);
+  const diffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  dirtyRef.current = isDirty;
+  const syncModified = useCallback(() => {
+    const view = editorRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    const mod = countModified(baselineTextRef.current, current);
+    setModifiedChars(mod);
+    setIsDirty(mod > 0);
+  }, []);
 
   useEffect(() => {
     invoke<EncodingOption[]>("get_supported_encodings")
@@ -81,7 +100,7 @@ export default function App() {
           const paths = payload.paths;
           if (paths.length > 0) {
             const targetPath = paths[0];
-            if (dirtyRef.current) {
+            if (modifiedChars > 0) {
               setToast({
                 message: "当前内容有未保存修改。继续操作会丢弃这些修改，是否继续？",
                 confirmLabel: "继续",
@@ -98,7 +117,7 @@ export default function App() {
       })
       .then((fn) => { unlisten = fn; });
     return () => { unlisten?.(); };
-  }, []);
+  }, [modifiedChars]);
 
   const handleOpenPath = useCallback(async (path: string) => {
     try {
@@ -116,6 +135,7 @@ export default function App() {
   const applyDecodeResult = useCallback((result: DecodeResult) => {
     const view = editorRef.current;
     if (view) {
+      pendingSkipRef.current++;
       view.dispatch({
         changes: {
           from: 0,
@@ -124,12 +144,14 @@ export default function App() {
         },
       });
     }
+    baselineTextRef.current = result.text;
     setEncoding(result.encoding);
     setDetectedEncoding(result.detected_encoding);
     setFileSize(result.file_size);
     setHadErrors(result.had_errors);
     setReplacementCount(result.replacement_count);
     setTotalChars(result.total_chars);
+    setModifiedChars(0);
     setIsDirty(false);
     setCurrentLine(1);
     setCurrentCol(1);
@@ -142,7 +164,7 @@ export default function App() {
     });
     if (selected) {
       const targetPath = typeof selected === "string" ? selected : selected;
-      if (dirtyRef.current) {
+      if (modifiedChars > 0) {
         setToast({
           message: "当前内容有未保存修改。继续操作会丢弃这些修改，是否继续？",
           confirmLabel: "继续",
@@ -155,7 +177,7 @@ export default function App() {
         handleOpenPath(targetPath);
       }
     }
-  }, [handleOpenPath]);
+  }, [handleOpenPath, modifiedChars]);
 
   const handleSave = useCallback(async () => {
     if (!filePath) {
@@ -170,7 +192,9 @@ export default function App() {
         text,
         encoding,
       });
+      baselineTextRef.current = text;
       setIsDirty(false);
+      setModifiedChars(0);
     } catch (err) {
       await message(`保存失败: ${err}`, { title: "错误", kind: "error" });
     }
@@ -191,9 +215,11 @@ export default function App() {
         text,
         encoding,
       });
+      baselineTextRef.current = text;
       setFilePath(result.path);
       setFileSize(result.file_size);
       setIsDirty(false);
+      setModifiedChars(0);
     } catch (err) {
       await message(`另存为失败: ${err}`, { title: "错误", kind: "error" });
     }
@@ -201,9 +227,9 @@ export default function App() {
 
   const handleEncodeClick = useCallback(
     async (encId: EncodingId) => {
-      if (encId === encoding && !isDirty) return;
+      if (encId === encoding && modifiedChars === 0) return;
 
-      if (isDirty) {
+      if (modifiedChars > 0) {
         const confirmed = await ask(
           "当前内容有未保存修改。继续操作会丢弃这些修改，是否继续？",
           { title: "确认", kind: "warning" }
@@ -228,12 +254,17 @@ export default function App() {
         }
       }
     },
-    [encoding, isDirty, applyDecodeResult]
+    [encoding, modifiedChars, applyDecodeResult]
   );
 
   const handleContentChange = useCallback(() => {
-    setIsDirty(true);
-  }, []);
+    if (pendingSkipRef.current > 0) {
+      pendingSkipRef.current--;
+      return;
+    }
+    if (diffTimerRef.current) clearTimeout(diffTimerRef.current);
+    diffTimerRef.current = setTimeout(() => syncModified(), 200);
+  }, [syncModified]);
 
   const handleCursorChange = useCallback((line: number, col: number) => {
     setCurrentLine(line);
@@ -271,6 +302,7 @@ export default function App() {
         replacementCount={replacementCount}
         totalChars={totalChars}
         hadErrors={hadErrors}
+        modifiedChars={modifiedChars}
       />
       <EncodingBar
         commonEncodings={commonEncodings}
