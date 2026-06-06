@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { EditorView, keymap } from "@codemirror/view";
-import { EditorState, type Extension } from "@codemirror/state";
+import { EditorView, keymap, Decoration, DecorationSet } from "@codemirror/view";
+import { EditorState, StateField, type Extension, RangeSetBuilder } from "@codemirror/state";
 import { history, redo, undo } from "@codemirror/commands";
 import { defaultKeymap } from "@codemirror/commands";
 
@@ -10,6 +10,32 @@ interface CodeMirrorEditorProps {
   onSave: () => void;
   editorRef: React.MutableRefObject<EditorView | null>;
 }
+
+const garbledMark = Decoration.mark({ class: "cm-garbled-highlight" });
+
+function buildGarbledDecorations(state: EditorState): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const text = state.doc.toString();
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\uFFFD") {
+      builder.add(i, i + 1, garbledMark);
+    }
+  }
+  return builder.finish();
+}
+
+const garbledField = StateField.define<DecorationSet>({
+  create(state) {
+    return buildGarbledDecorations(state);
+  },
+  update(decorations, tr) {
+    if (tr.docChanged) {
+      return buildGarbledDecorations(tr.state);
+    }
+    return decorations.map(tr.changes);
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 export default function CodeMirrorEditor({
   onContentChange,
@@ -24,6 +50,7 @@ export default function CodeMirrorEditor({
 
   const extensions: Extension[] = [
     history(),
+    garbledField,
     keymap.of([
       ...defaultKeymap,
       { key: "Mod-z", run: undo },

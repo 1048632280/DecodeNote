@@ -41,17 +41,36 @@ interface ToastState {
 }
 
 function countModified(original: string, current: string): number {
-  let prefix = 0;
-  const minLen = Math.min(original.length, current.length);
-  while (prefix < minLen && original[prefix] === current[prefix]) prefix++;
-  let suffix = 0;
-  while (
-    suffix < minLen - prefix &&
-    original[original.length - 1 - suffix] === current[current.length - 1 - suffix]
-  ) suffix++;
-  const origChanged = original.length - prefix - suffix;
-  const currChanged = current.length - prefix - suffix;
-  return Math.max(origChanged, currChanged);
+  let oi = 0,
+    ci = 0;
+  let mod = 0;
+  const oLen = original.length,
+    cLen = current.length;
+
+  while (oi < oLen && ci < cLen) {
+    if (original[oi] === current[ci]) {
+      oi++;
+      ci++;
+      continue;
+    }
+    mod++;
+    let synced = false;
+    for (let k = 1; k <= 100 && oi + k < oLen && ci + k < cLen; k++) {
+      if (original[oi + k] === current[ci + k]) {
+        oi += k;
+        ci += k;
+        synced = true;
+        break;
+      }
+    }
+    if (!synced) {
+      if (oi < oLen) oi++;
+      else if (ci < cLen) ci++;
+      else break;
+    }
+  }
+  mod += Math.max(oLen - oi, cLen - ci);
+  return mod;
 }
 
 function countFFFD(text: string): number {

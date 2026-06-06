@@ -15,8 +15,7 @@ pub struct AppState {
 
 fn decode_bytes(bytes: &[u8], encoding: &EncodingId) -> Result<(String, bool, usize), AppError> {
     match encoding {
-        EncodingId::Utf16Le => decode_utf16(bytes, false),
-        EncodingId::Utf16Be => decode_utf16(bytes, true),
+        EncodingId::Utf16Le | EncodingId::Utf16Be => decode_utf16_via_encoding_rs(bytes, *encoding == EncodingId::Utf16Be),
         _ => {
             let label = encoding
                 .encoding_rs_label()
@@ -41,40 +40,16 @@ fn decode_bytes(bytes: &[u8], encoding: &EncodingId) -> Result<(String, bool, us
     }
 }
 
-fn decode_utf16(bytes: &[u8], big_endian: bool) -> Result<(String, bool, usize), AppError> {
-    if bytes.len() < 2 {
-        return Ok((String::new(), false, 0));
+fn decode_utf16_via_encoding_rs(bytes: &[u8], big_endian: bool) -> Result<(String, bool, usize), AppError> {
+    let label = if big_endian { "UTF-16BE" } else { "UTF-16LE" };
+    let enc = Encoding::for_label(label.as_bytes())
+        .ok_or_else(|| AppError::DecodeError(format!("未知编码: {}", label)))?;
+    let (cow, _enc, had_errors) = enc.decode(bytes);
+    let mut text = cow.into_owned();
+    if text.starts_with('\u{FEFF}') {
+        text.remove(0);
     }
-
-    let has_bom = (big_endian && bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
-        || (!big_endian && bytes.len() >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE);
-
-    let start = if has_bom { 2 } else { 0 };
-    let data = &bytes[start..];
-
-    if data.len() % 2 != 0 {
-        return Err(AppError::DecodeError(
-            "UTF-16 字节长度不是偶数".to_string(),
-        ));
-    }
-
-    let mut units = Vec::with_capacity(data.len() / 2);
-    for chunk in data.chunks_exact(2) {
-        let unit = if big_endian {
-            u16::from_be_bytes([chunk[0], chunk[1]])
-        } else {
-            u16::from_le_bytes([chunk[0], chunk[1]])
-        };
-        units.push(unit);
-    }
-
-    let text = String::from_utf16(&units).map_err(|e| {
-        AppError::DecodeError(format!("UTF-16 解码失败: {}", e))
-    })?;
-
     let replacement_count = text.chars().filter(|&c| c == '\u{FFFD}').count();
-    let had_errors = replacement_count > 0;
-
     Ok((text, had_errors, replacement_count))
 }
 

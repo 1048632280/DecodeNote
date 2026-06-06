@@ -161,7 +161,11 @@ body {
 }
 
 .editor-container .cm-editor .cm-selectionBackground {
-  background: rgba(137, 180, 250, 0.25) !important;
+  background: rgba(0, 102, 204, 0.3) !important;
+}
+
+.cm-garbled-highlight {
+  background: rgba(255, 204, 0, 0.35);
 }
 
 .status-bar {
